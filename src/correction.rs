@@ -57,8 +57,11 @@ impl Polynomial {
 
         let len_diff = other.values.len() as i8 - self.values.len() as i8;
         if len_diff > 0 {
+            // Each iteration increases the size, idx related to inital length
+            let initial_len = self.values.len();
             for i  in 0..len_diff {
-                self.values.push(other.values[self.values.len() + usize::try_from(i).unwrap()]);
+                self.values.push(other.values[initial_len + usize::try_from(i).unwrap()]);
+                // self.values.push(other.values[self.values.len() + usize::try_from(i).unwrap()]);
             }
         }
     }
@@ -226,7 +229,7 @@ pub fn generate_error_code_bits(format: &Vec<bool>) -> Vec<bool> {
 pub fn generate_format_string(format: &Vec<bool>) -> Vec<bool> {
     let error_code_bits = generate_error_code_bits(&format);
     let mut result = [format.clone(), error_code_bits].concat();
-    // For documentation: 101010000010010
+    // From documentation: 101010000010010
     let mask_string = vec![true, false, true, false, true, false, false, false, false, false, true, false, false, true, false];
     // TODO: refactor the XOR operation
     result = result.iter()
