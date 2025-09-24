@@ -4,6 +4,17 @@ use std::cmp;
 use crate::encoding::alphanumeric::encode_alpha;
 use crate::correction::Correction;
 
+fn vec_to_binary(chunk: &[bool]) -> u16 {
+    
+    return chunk.iter().fold(0, |acc, &b| (acc << 1) | (b as u16));
+}
+
+pub fn to_decimal(encoding: &Vec<bool>) -> Vec<u16> {
+    return encoding.chunks(8)
+        .map(|chunk| vec_to_binary(&chunk))
+        .collect();
+}
+
 // TODO: current Encoding enum and imp is quite strange, should change later
 pub enum Encoding {
     ALPHANUMERIC,
@@ -80,7 +91,7 @@ impl Encoding {
 }
 
 
-mod alphanumeric {
+pub mod alphanumeric {
     use crate::encoding::to_binary;
 
     fn get_alpha_value(character: char) -> Option<usize> {
@@ -111,12 +122,13 @@ mod alphanumeric {
     pub fn encode_alpha(string: String) -> Option<Vec<bool>> {
         const ALPHA_PAIR_SIZE: usize = 11;
         const ALPHA_SINGLE_SIZE: usize = 6;
+        let current_size = string.len();
 
         return encode_alpha_values(string).map(|vec| {
             let mut result = Vec::<bool>::new(); 
             for (idx, &val) in vec.iter().enumerate() {
                 // If is last element and odd number of chars
-                let size = if (idx == vec.len() - 1) && (vec.len() % 2 == 1) {
+                let size = if (idx == vec.len() - 1) && (current_size % 2 == 1) {
                     ALPHA_SINGLE_SIZE
                 } else {
                     ALPHA_PAIR_SIZE
@@ -156,11 +168,19 @@ mod tests {
     use crate::encoding::{alphanumeric, Encoding};
 
     #[test]
-    fn test_to_binary() {
+    fn test_encode_alpha() {
         let expected_value = Vec::from([false,false,true,true,true,false,false,true,true,true,false, 
             true,true,true,false,false,true,true,true,false,false,true,
             false,false,false,false,true,false]);
         let result = alphanumeric::encode_alpha(String::from("AC-42")).unwrap();
+
+        assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
+    }
+
+    #[test]
+    fn test_encode_alpha2() {
+        let expected_value = vec![false,true,true,false,false,false,false,true,false,true,true, false,true,true,true,true,false,false,false,true,true,false, true,false,false,false,true,false,true,true,true,false,false, true,false,true,true,false,true,true,true,false,false,false, true,false,false,true,true,false,true,false,true,false,false, false,false,true,true,false,true, ];
+        let result = alphanumeric::encode_alpha(String::from("HELLO WORLD")).unwrap();
 
         assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
     }
