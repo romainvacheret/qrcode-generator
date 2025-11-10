@@ -24,10 +24,17 @@ type EncodingFunc = fn(String) -> Option<Vec<bool>>;
 
 impl Encoding {
 
-    fn get_mode_indicator(&self) -> Vec<bool> {
+    pub fn to_binary(&self) -> Vec<bool> {
         return match self {
             Self::ALPHANUMERIC => Vec::<bool>::from([false, false, true, false])
         }
+    }
+
+    pub fn get_char_count_binary(&self, string_len: usize) -> Vec<bool> {
+        // TODO: create table for all versions/encoding
+        // For alpha version 1
+        let char_count_size = 9;
+        to_binary(string_len, char_count_size)
     }
 
     fn get_encoding_func(&self) -> EncodingFunc {
@@ -80,7 +87,7 @@ impl Encoding {
         let char_count_size = 9;
         // For version 1/L
         let max_size = 152;
-        let data = [self.get_mode_indicator(), 
+        let data = [self.to_binary(), 
             to_binary(string.len(), char_count_size),
             // TODO: remove unchecked unwrap
             encoding_func(string).unwrap()].concat();
@@ -100,7 +107,14 @@ pub mod alphanumeric {
     }
 
     fn encode_alpha_pair(char1: char, char2: char) -> Option<usize> {
-        let first_encoding = get_alpha_value(char1)?;
+        let opt_first_encoding = get_alpha_value(char1);
+
+        // TODO: handle btter
+        if opt_first_encoding.is_none() {
+            panic!("ERROR: Invalid char");
+        }
+
+        let first_encoding = opt_first_encoding.unwrap();
 
         return Some(if char2 != '\0' { 
             first_encoding * 45 + get_alpha_value(char2)?
@@ -179,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_encode_alpha2() {
-        let expected_value = vec![false,true,true,false,false,false,false,true,false,true,true, false,true,true,true,true,false,false,false,true,true,false, true,false,false,false,true,false,true,true,true,false,false, true,false,true,true,false,true,true,true,false,false,false, true,false,false,true,true,false,true,false,true,false,false, false,false,true,true,false,true, ];
+        let expected_value = vec![false,true,true,false,false,false,false,true,false,true,true, false,true,true,true,true,false,false,false,true,true,false, true,false,false,false,true,false,true,true,true,false,false, true,false,true,true,false,true,true,true,false,false,false, true,false,false,true,true,false,true,false,true,false,false, false,false,true,true,false,true];
         let result = alphanumeric::encode_alpha(String::from("HELLO WORLD")).unwrap();
 
         assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);

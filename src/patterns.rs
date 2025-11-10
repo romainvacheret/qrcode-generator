@@ -86,12 +86,26 @@ impl PatternHelper {
     }
 
     // TODO: add alignment patterns for versions > 1
+    // TODO: handle errors if out of bounds
     pub fn apply_patterns(&self, matrix: &mut Matrix, version: usize) {
         self.set_finders(matrix);
         self.set_separators(matrix);
         self.set_timing(matrix);
 
-        // Don't remember the name of that pattern
+        // Dark module
         matrix.data[4 * version + 9][8] = true;
+    }
+
+    pub fn apply_patterns2(&self, matrix: &mut Matrix, version: usize) {
+        self.apply_patterns(matrix, version);
+
+        self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(0, 8), true);
+        self.set_line(matrix, &vec![self.is_prep; 9], &Pos::new(8, 0), false);
+        // bottom left
+        self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(matrix.data.len() - 8, 8), true);
+        // self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(matrix.data.len() - 9, 0), false);
+        // top right
+        // self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(0, matrix.data.len() - 9), true);
+        self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(8, matrix.data.len() - 8), false);
     }
 }

@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_generate_format_string() {
+    pub fn test_generate_format_string_l4() {
         // For L and Mask 4
         let format = vec![false, true, true, false, false];
         let result = generate_format_string(&format);
@@ -276,4 +276,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    pub fn test_generate_format_string_m2() {
+        // For M and Mask 2
+        let format = vec![false, false, false, true, false];
+        let result = generate_format_string(&format);
+        let expected_result = vec![true, false, true, true, true, true, false, false, true, true, true, true, true, false, false];
+
+        assert_eq!(result, expected_result);
+    }
+
 }

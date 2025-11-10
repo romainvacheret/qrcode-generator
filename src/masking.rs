@@ -47,8 +47,9 @@ impl Mask {
 
         for i in 0..matrix.len() {
             for j in 0..matrix[i].len() {
-                let value = matrix[i][j];
-                matrix[i][j] = if func(i as u8, j as u8) == false { !value } else { value };
+                // let value = matrix[i][j];
+                // matrix[i][j] = if func(i as u8, j as u8) == true { !value } else { value };
+                matrix[i][j] ^= func(i as u8, j as u8);
             }
         }
     }
