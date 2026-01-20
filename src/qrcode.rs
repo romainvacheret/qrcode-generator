@@ -1,6 +1,6 @@
 use std::{thread::current, usize::MIN};
 
-use crate::{correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial}, encoding::{self, Encoding}, masking::{self, Mask}, patterns::PatternHelper, to_bits, utils::{self, print_as_binary, Matrix, Pos}};
+use crate::{correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial}, encoding::{self, alphanumeric::Alphanumeric, Encoding, Encode}, masking::{self, Mask}, patterns::PatternHelper, to_bits, utils::{self, print_as_binary, Matrix, Pos}};
 
 // TODO: reformat with other pad functions encoding/correction
 fn pad(size: usize) -> Vec<bool> {
@@ -132,7 +132,8 @@ impl QRCode {
 
 
     pub fn assemble(&mut self) {
-        let opt_res = encoding::alphanumeric::encode_alpha(self.message.to_string());
+        // let encoding = Alphanumeric;
+        let opt_res = self.encoding.encode_text(self.message.to_string());
         // Add Encoding mode and character count before correction
         let mut data_string = [
             self.encoding.to_binary(),
