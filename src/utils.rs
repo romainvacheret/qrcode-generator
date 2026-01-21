@@ -1,5 +1,8 @@
+
 pub mod structure {
     // TODO: make it an iterator intead of accessing data
+    use std::fmt::Write;
+
     pub struct Matrix {
         pub data: Vec<Vec<bool>>,
         pub size: usize 
@@ -16,13 +19,20 @@ pub mod structure {
             return Matrix { data: vec![vec![false; size]; size], size };
         }
 
-        pub fn display(&self) {
+        pub fn as_string(&self) -> String {
+            let mut out = String::new();
+
             for row in &self.data {
                 for &col in row {
-                    print!("{} ", if col { "#" } else { "-" });
+                    let _ = write!(out, "{} ", if col { "#" } else { "-" });
                 }
-                println!();
+                out.push('\n');
             }
+            out
+        }
+
+        pub fn display(&self) {
+            print!("{}", self.as_string())
         }
 
         pub fn get(&self, pos: &Pos) -> Option<&bool> {
@@ -133,7 +143,16 @@ pub mod bin {
             .map(|chunk| vec_to_binary(&chunk))
             .collect();
     }
+
+    pub fn to_bits(n: u16) -> Vec<bool> {
+        (0..8)
+            .rev() // start from most significant bit
+            .map(|i| (n & (1 << i)) != 0)
+            .collect()
+    }
 }
+
+
 
 pub fn pad(vect: &mut Vec<bool>, pad_size: usize) {
     vect.extend((0..pad_size).map(|_| false));

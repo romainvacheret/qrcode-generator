@@ -1,4 +1,4 @@
-use crate::{masking::Mask, patterns::PatternHelper, qrcode::version::Version, to_bits, utils::pad};
+use crate::{masking::Mask, patterns::PatternHelper, qrcode::version::Version, utils::{pad, bin::to_bits}};
 use crate::correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial};
 use crate::encoding::{Encoding};
 use crate::utils::{dev::print_as_binary, structure::{Matrix, Pos}, bin::to_decimal};
@@ -180,6 +180,10 @@ impl QRCode {
 
     pub fn display(&self) {
         self.data.display();
+    }
+
+    pub fn as_string(&self) -> String {
+        self.data.as_string()
     }
 }
 
