@@ -2,6 +2,7 @@ use std::vec;
 
 use crate::utils::Matrix;
 use crate::utils::Pos;
+use crate::qrcode::version::Version;
 
 /// Struct used to apply the patterns to matrices.
 /// There are two cases in which they need to be applied.
@@ -87,16 +88,16 @@ impl PatternHelper {
 
     // TODO: add alignment patterns for versions > 1
     // TODO: handle errors if out of bounds
-    pub fn apply_patterns(&self, matrix: &mut Matrix, version: usize) {
+    pub fn apply_patterns(&self, matrix: &mut Matrix, version: &Version) {
         self.set_finders(matrix);
         self.set_separators(matrix);
         self.set_timing(matrix);
 
         // Dark module
-        matrix.data[4 * version + 9][8] = true;
+        matrix.data[4 * version.get() + 9][8] = true;
     }
 
-    pub fn apply_patterns2(&self, matrix: &mut Matrix, version: usize) {
+    pub fn apply_patterns2(&self, matrix: &mut Matrix, version: &Version) {
         self.apply_patterns(matrix, version);
 
         self.set_line(matrix, &vec![self.is_prep; 8], &Pos::new(0, 8), true);

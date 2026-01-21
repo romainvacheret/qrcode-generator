@@ -1,6 +1,4 @@
-use std::{thread::current, usize::MIN};
-
-use crate::{correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial}, encoding::{self, alphanumeric::Alphanumeric, Encoding, Encode}, masking::{self, Mask}, patterns::PatternHelper, to_bits, utils::{self, print_as_binary, Matrix, Pos}};
+use crate::{correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial}, encoding::{self, alphanumeric::Alphanumeric, Encode, Encoding}, masking::{self, Mask}, patterns::PatternHelper, qrcode::version::Version, to_bits, utils::{self, print_as_binary, Matrix, Pos}};
 
 // TODO: reformat with other pad functions encoding/correction
 fn pad(size: usize) -> Vec<bool> {
@@ -11,20 +9,19 @@ pub struct QRCode {
     data: Matrix,
     pattern: Matrix,
     message: String,
-    version: usize,
+    version: Version,
     encoding: Encoding,
     correction: Correction
 }
 
 impl QRCode {
     pub fn new(message: String, encoding: Encoding, correction: Correction) -> Self {
-        // TODO:
-        let size = 21;
+        let version = version::Version::new(1).unwrap();
         let mut qrcode = QRCode {
-            data: Matrix::new(size),
-            pattern: Matrix::new(size),
+            data: Matrix::new(version.get_size()),
+            pattern: Matrix::new(version.get_size()),
             message: message,
-            version: 1,
+            version: version,
             encoding: encoding,
             correction: correction,
         };
@@ -32,7 +29,8 @@ impl QRCode {
         qrcode.pattern.display();
 
         // PatternHelper::new(true).apply_patterns(&mut qrcode.pattern, qrcode.version);
-        PatternHelper::new(true).apply_patterns2(&mut qrcode.pattern, qrcode.version);
+        // TODO: pass version 
+        PatternHelper::new(true).apply_patterns2(&mut qrcode.pattern, &qrcode.version);
 
         qrcode.pattern.display();
 
@@ -111,6 +109,8 @@ impl QRCode {
     }
 
     fn pad_full_encoding(&self, message: &mut Vec<bool>, max_length: usize) {
+        // `max_length` should never be greater than `current_size`
+        // Pad with at most 4 zeros or less if reached the max size
         let terminator_size = std::cmp::min(max_length - message.len(), 4);
         let terminator = pad(terminator_size);
 
@@ -132,23 +132,8 @@ impl QRCode {
 
 
     pub fn assemble(&mut self) {
-        // let encoding = Alphanumeric;
-        let opt_res = self.encoding.encode_text(self.message.to_string());
-        // Add Encoding mode and character count before correction
-        let mut data_string = [
-            self.encoding.to_binary(),
-            self.encoding.get_char_count_binary(self.message.len()),
-            opt_res.unwrap()
-        ].concat();
-        
-        // TODO: value for 1M, look up for other 
-        let max_size: usize = 16 * 8;
-        // let max_size: usize = 13 * 8;
-
-        println!("Res {}", data_string.len());
-        utils::print_as_binary(&data_string, 11);
-
-        self.pad_full_encoding(&mut data_string, max_size);
+        let mut data_string = self.encoding.encode(self.message.to_string(), &self.version);
+        self.pad_full_encoding(&mut data_string, 16 * 8);
 
         // NOTE: data_strint correct content until here 
         println!("SIZE {} {:?}", data_string.len(), data_string);
@@ -178,19 +163,6 @@ impl QRCode {
         // ------
         // TODO: detect the most relevant one
         let mask = Mask::MASK2;
-        // println!("{:?}", correction_bits.len());
-        // let res_len = res.len();
-        // let data_string = [
-        //     // self.correction.to_binary(),
-        //     self.encoding.to_binary(),
-        //     self.encoding.get_char_count_binary(self.message.len()),
-        //     // mask.to_binary(),
-        //     res,
-        //     terminator,
-        //     // padding_mul_8,
-        //     // self.get_padding(pad_count),
-        //     // correction_bits
-        // ].concat();
 
         let mut format_string = generate_format_string(&[
             self.correction.to_binary(),
@@ -210,11 +182,52 @@ impl QRCode {
 
         self.fill_matrix(data_string);
         mask.apply(&mut self.data.data);
-        PatternHelper::new(false).apply_patterns(&mut self.data, self.version);
+        // TODO: pass version not usize
+        PatternHelper::new(false).apply_patterns(&mut self.data, &self.version);
         self.add_format_string(format_string);
     }
 
     pub fn display(&self) {
         self.data.display();
+    }
+}
+
+pub mod version {
+    use crate::encoding::Encoding;
+
+    pub struct Version(usize);
+
+    impl Version {
+        pub fn new(value: usize) -> Option<Self> {
+            if (1..=40).contains(&value) {
+                Some(Version(value))
+            } else {
+                None
+            }
+        }
+
+        pub fn get(&self) -> usize {
+            return self.0
+        }
+
+        // https://www.thonky.com/qr-code-tutorial/data-encoding
+        pub fn get_char_count(&self, encoding: &Encoding) -> usize {
+            match encoding {
+                Encoding::ALPHANUMERIC => match self.0 {
+                    1..=9 => 9,
+                    10..=26 => 11,
+                    27..=40 => 13,
+                    _ => unreachable!()
+                }
+            }
+        }
+
+        pub fn get_size(&self) -> usize {
+            match self.0 {
+                1 => 21,
+                _ => panic!("Not implemented yet")
+            }
+        }
+
     }
 }
