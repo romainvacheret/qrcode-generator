@@ -1,9 +1,7 @@
-use crate::{correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial}, encoding::{self, alphanumeric::Alphanumeric, Encode, Encoding}, masking::{self, Mask}, patterns::PatternHelper, qrcode::version::Version, to_bits, utils::{self, print_as_binary, Matrix, Pos}};
-
-// TODO: reformat with other pad functions encoding/correction
-fn pad(size: usize) -> Vec<bool> {
-    (0..size).map(|_| false).collect()
-}
+use crate::{masking::Mask, patterns::PatternHelper, qrcode::version::Version, to_bits, utils::pad};
+use crate::correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial};
+use crate::encoding::{Encoding};
+use crate::utils::{dev::print_as_binary, structure::{Matrix, Pos}, bin::to_decimal};
 
 pub struct QRCode {
     data: Matrix,
@@ -29,7 +27,6 @@ impl QRCode {
         qrcode.pattern.display();
 
         // PatternHelper::new(true).apply_patterns(&mut qrcode.pattern, qrcode.version);
-        // TODO: pass version 
         PatternHelper::new(true).apply_patterns2(&mut qrcode.pattern, &qrcode.version);
 
         qrcode.pattern.display();
@@ -109,21 +106,15 @@ impl QRCode {
     }
 
     fn pad_full_encoding(&self, message: &mut Vec<bool>, max_length: usize) {
-        // `max_length` should never be greater than `current_size`
         // Pad with at most 4 zeros or less if reached the max size
         let terminator_size = std::cmp::min(max_length - message.len(), 4);
-        let terminator = pad(terminator_size);
+        pad(message, terminator_size);
 
-        message.extend(terminator);
-
-        let padding_mul_8 = if message.len() < max_length {
-            // Make the size a multiple of 8
-            pad(8 - message.len() % 8)
-        } else {
-            vec![]
-        };
-
-        message.extend(padding_mul_8);
+        // Pad until size is multiple of 8 if did not reach maximum size yet
+        if message.len() < max_length {
+            let mul_8_size = 8 - message.len() % 8;
+            pad(message, mul_8_size);
+        }
 
         let padding = self.get_padding((max_length - message.len()) / 8);
 
@@ -137,9 +128,9 @@ impl QRCode {
 
         // NOTE: data_strint correct content until here 
         println!("SIZE {} {:?}", data_string.len(), data_string);
-        utils::print_as_binary(&data_string, 8);
+        print_as_binary(&data_string, 8);
 
-        let decimal = encoding::to_decimal(&data_string);
+        let decimal = to_decimal(&data_string);
         let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, decimal);
         println!("Poly {:?}", poly);
         let mut other = get_generator_polynomial(0);

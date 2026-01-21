@@ -1,24 +1,14 @@
 use std::usize;
 
-use crate::encoding::alphanumeric::*;
+use crate::encoding::alphanumeric::Alphanumeric;
 use crate::qrcode::version::Version;
+use crate::utils::bin::to_binary;
 
 pub mod alphanumeric;
 
 pub trait Encode {
     fn get_binary(&self) -> Vec<bool>;
     fn encode_text(&self, string: String) -> Option<Vec<bool>>;
-}
-
-fn vec_to_binary(chunk: &[bool]) -> u16 {
-    
-    return chunk.iter().fold(0, |acc, &b| (acc << 1) | (b as u16));
-}
-
-pub fn to_decimal(encoding: &Vec<bool>) -> Vec<u16> {
-    return encoding.chunks(8)
-        .map(|chunk| vec_to_binary(&chunk))
-        .collect();
 }
 
 pub enum Encoding {
@@ -34,8 +24,6 @@ impl Encoding {
     }
 
     fn get_char_count_binary(&self, string_len: usize, version: &Version) -> Vec<bool> {
-        // TODO: create table for all versions/encoding
-        // For alpha version 1
         to_binary(string_len, version.get_char_count(self))
     }
 
@@ -53,29 +41,6 @@ impl Encoding {
         ].concat()
     }
 }
-
-fn pad(vect: &mut Vec<bool>, expected_size: usize) {
-    // TODO: Current size should never be greater than expected_size
-    // but should still handle possible error
-    for _ in 0..(expected_size - vect.len()) {
-        vect.push(false);
-    }
-}
-
-// TODO: refactor
-fn to_binary(mut val: usize, expected_size: usize) -> Vec<bool> {
-    let mut result = Vec::<bool>::new();
-
-    while val > 0 {
-        result.push(val % 2 == 1);
-        val /=  2;
-    }
-
-    pad(&mut result, expected_size);
-    result.reverse();
-    return result;
-}
-
 
 // TODO: add back
 // #[cfg(test)]

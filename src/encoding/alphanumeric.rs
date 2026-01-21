@@ -70,9 +70,10 @@ mod tests {
 
     #[test]
     fn test_encode_text() {
-        let expected_value = Vec::from([false,false,true,true,true,false,false,true,true,true,false, 
-            true,true,true,false,false,true,true,true,false,false,true,
-            false,false,false,false,true,false]);
+        let expected_value = Vec::from([
+            false, false, true, true, true, false, false, true, true, 
+            true, false, true, true, true, false, false, true, true, 
+            true, false, false, true, false, false, false, false, true, false]);
         let result = Alphanumeric.encode_text(String::from("AC-42")).unwrap();
 
         assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
@@ -80,7 +81,13 @@ mod tests {
 
     #[test]
     fn test_encode_text2() {
-        let expected_value = vec![false,true,true,false,false,false,false,true,false,true,true, false,true,true,true,true,false,false,false,true,true,false, true,false,false,false,true,false,true,true,true,false,false, true,false,true,true,false,true,true,true,false,false,false, true,false,false,true,true,false,true,false,true,false,false, false,false,true,true,false,true];
+        let expected_value = vec![
+            false, true, true, false, false, false, false, true, false, true, true,  
+            false, true, true, true, true, false, false, false, true, true, false,  
+            true, false, false, false, true, false, true, true, true, false, false,  
+            true, false, true, true, false, true, true, true, false, false, false,  
+            true, false, false, true, true, false, true, false, true, false, false,  
+            false, false, true, true, false, true];
         let result = Alphanumeric.encode_text(String::from("HELLO WORLD")).unwrap();
 
         assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
