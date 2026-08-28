@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fs::File, io::{self, BufRead, BufReader}, iter::Map, sync::Once};
+use std::{fs::File, io::{BufRead, BufReader}};
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum Correction {
     L,
     M,
@@ -17,7 +17,24 @@ impl Correction {
             Correction::H => vec![true, false]
         }
     }
-    
+
+    pub fn get_nb_data_codewords(&self) -> usize {
+        return match self {
+            Correction::L => 19,
+            Correction::M => 16,
+            Correction::Q => 13,
+            Correction::H => 9
+        }
+    }
+
+    pub fn get_nb_ecc_codewords(&self) -> usize {
+        return match self {
+            Correction::L => 7,
+            Correction::M => 10,
+            Correction::Q => 13,
+            Correction::H => 17
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -80,35 +97,29 @@ impl Polynomial {
     
 }
 
-fn get_log_antilog() -> &'static Vec<Vec<u16>> {
-    static INIT: Once = Once::new();
-    static mut DATA: Option<Vec<Vec<u16>>> = None;
+fn get_log_antilog() -> Vec<Vec<u16>> {
+    let file = File::open("log-antilog.csv").expect("Cannot open file");
 
-    INIT.call_once(|| {
-        let file = File::open("log-antilog.csv").expect("Cannot open file");
-        let reader = BufReader::new(file);
-
-        let content = reader
-            .lines()
-            .skip(1) // skip header
-            .filter_map(Result::ok)
-            .map(|line| line.split(',')
-                            .map(|s| s.parse::<u16>().unwrap())
-                            .collect::<Vec<u16>>())
-            .collect::<Vec<Vec<u16>>>();
-
-        unsafe { DATA = Some(content) };
-    });
-
-    unsafe { DATA.as_ref().unwrap() }
+    BufReader::new(file)
+        .lines()
+        .skip(1) // skip header
+        .filter_map(Result::ok)
+        .map(|line| line.split(',')
+                        .map(|s| s.parse::<u16>().unwrap())
+                        .collect::<Vec<u16>>())
+        .collect::<Vec<Vec<u16>>>()
 }
 
 
-// At the moment, only handle 1M
-pub fn get_generator_polynomial(size: u16) -> Polynomial {
-    return Polynomial::new(NotationMode::ALPHA,vec![0, 251, 67, 46, 61, 118, 70, 64, 94, 32, 45]);
+// At the moment, only handle alphanumeric version 1
+pub fn get_generator_polynomial(correction: &Correction) -> Polynomial {
+    return match correction {
+        Correction::L => Polynomial::new(NotationMode::ALPHA, vec![0, 87, 229, 146, 149, 238, 102, 21]),
+        Correction::M => Polynomial::new(NotationMode::ALPHA, vec![0, 251, 67, 46, 61, 118, 70, 64, 94, 32, 45]),
+        Correction::Q => Polynomial::new(NotationMode::ALPHA, vec![0, 74, 152, 176, 100, 86, 100, 106, 104, 130, 218, 206, 140, 78]),
+        Correction::H => Polynomial::new(NotationMode::ALPHA, vec![0, 43, 139, 206, 78, 43, 239, 123, 206, 214, 147, 24, 99, 150, 39, 243, 163, 136]),
+    }
 }
-
 
 pub fn divide_message_polynomial(message: &mut Polynomial, generator: &Polynomial) {
     let mut generator_copy = generator.clone();
@@ -137,14 +148,24 @@ pub fn divide_message_polynomial(message: &mut Polynomial, generator: &Polynomia
         let diff_exponent = message.exponent - generator_copy.exponent;
         generator_copy.exponent += diff_exponent;
         println!("Step {}a", idx);
-        // TODO: Unnecessary to convert the entire polynomial
-        message.convert();
-        println!("message {}", message.to_string());
-        println!("generator {}", generator_copy.to_string());
-        // generator_copy.values.iter_mut().for_each(|v| {*v += message.values[0]; if *v == 255 {println!("256 {}", idx)}; if *v > 255 { *v %= 255 }; });
-        generator_copy.values.iter_mut().for_each(|v| {*v += message.values[0]; if *v > 255 { *v %= 255}; });
-        // Convert back after previous conversion for 1st element
-        message.convert();
+        
+        // Coefficient to be converted
+        let first_coef = message.values[0];
+
+        // If leading coefficient is zero no division to perform
+        if first_coef == 0 {
+            message.values.remove(0);
+            message.exponent -= 1;
+            continue;
+        }
+
+        let first_alpha = get_log_antilog()[usize::from(first_coef)][3];
+
+        generator_copy.values.iter_mut().for_each(|v| {
+            *v += first_alpha;
+            if *v > 255 { *v %= 255};
+        });
+
         generator_copy.convert();
         println!("generator {}", generator_copy.to_string());
         println!("message {}", message.to_string());
@@ -209,7 +230,10 @@ pub fn generate_error_code_bits(format: &Vec<bool>) -> Vec<bool> {
         println!("Trimmed format {:?} {}\n", result, result.len());
     }
 
-    pad(&mut result, 10);
+    // pad(&mut result, 10);
+    while result.len() < 10 {
+        result.insert(0, false);
+    }
 
 
     return result;
@@ -242,14 +266,92 @@ pub fn generate_format_string(format: &Vec<bool>) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use crate::correction::{self, divide_message_polynomial, generate_error_code_bits, generate_format_string, get_generator_polynomial, Polynomial};
+    use crate::correction::{self, divide_message_polynomial, generate_error_code_bits, generate_format_string, get_generator_polynomial, Correction, Polynomial};
+
+
+    #[test]
+    pub fn test_divide_message_polynomial_1l() {
+        // "HELLO WORLD", Version 1-L
+        // 19 data codewords
+        let vect = vec![
+            32, 91, 11, 120, 209, 114, 220, 77, 67, 64,
+            236, 17, 236, 17, 236, 17, 236, 17, 236
+        ];
+
+        let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, vect);
+        let mut other = get_generator_polynomial(&Correction::L);
+
+        let expected_result = Polynomial::new(
+            correction::NotationMode::DECIMAL,
+            vec![209, 239, 196, 207, 78, 195, 109],
+        );
+
+        divide_message_polynomial(&mut poly, &mut other);
+
+        assert_eq!(poly, expected_result);
+    }
 
     #[test]
     pub fn test_divide_message_polynomial() {
-        let vect = vec![32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17];
+        let vect = vec![
+            32, 91, 11, 120, 209, 114, 220, 77, 
+            67, 64, 236, 17, 236, 17, 236, 17
+        ];
         let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, vect);
-        let mut other = get_generator_polynomial(0);
-        let expected_result = Polynomial::new(correction::NotationMode::DECIMAL, vec![196, 35, 39, 119, 235, 215, 231, 226, 93, 23]);
+        let mut other = get_generator_polynomial(&Correction::M);
+
+        let expected_result = Polynomial::new(
+            correction::NotationMode::DECIMAL, 
+            vec![196, 35, 39, 119, 235, 215, 231, 226, 93, 23]
+        );
+
+        divide_message_polynomial(&mut poly, &mut other);
+
+        assert_eq!(poly, expected_result);
+    }
+
+
+    #[test]
+    pub fn test_divide_message_polynomial_1q() {
+        // "HELLO WORLD", Version 1-Q
+        // 13 data codewords
+        let vect = vec![
+            32, 91, 11, 120, 209, 114, 220,
+            77, 67, 64, 236, 17, 236
+        ];
+
+        let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, vect);
+        let mut other = get_generator_polynomial(&Correction::Q);
+
+        let expected_result = Polynomial::new(
+            correction::NotationMode::DECIMAL,
+            vec![168, 72, 22, 82, 217, 54, 156, 0, 46, 15, 180, 122, 16],
+        );
+
+        divide_message_polynomial(&mut poly, &mut other);
+
+        assert_eq!(poly, expected_result);
+    }
+
+
+    #[test]
+    pub fn test_divide_message_polynomial_1h() {
+        // "HELLO WORL", Version 1-H
+        // 9 data codewords
+        let vect = vec![
+            32, 83, 11, 120, 209, 114, 220, 77, 64
+        ];
+
+        let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, vect);
+        let mut other = get_generator_polynomial(&Correction::H);
+
+        let expected_result = Polynomial::new(
+            correction::NotationMode::DECIMAL,
+            vec![
+                55, 122, 139, 105, 131, 8, 19, 170, 240,
+                233, 77, 132, 155, 46, 33, 53, 158
+            ],
+        );
 
         divide_message_polynomial(&mut poly, &mut other);
 

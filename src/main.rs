@@ -6,7 +6,7 @@ fn exec_correction() {
 
     let vect = vec![32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17];
     let mut poly = Polynomial::new(NotationMode::DECIMAL, vect);
-    let mut other = get_generator_polynomial(0);
+    let mut other = get_generator_polynomial(&Correction::M);
 
     divide_message_polynomial(&mut poly, &mut other);
 }

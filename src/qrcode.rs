@@ -124,7 +124,8 @@ impl QRCode {
 
     pub fn assemble(&mut self) {
         let mut data_string = self.encoding.encode(self.message.to_string(), &self.version);
-        self.pad_full_encoding(&mut data_string, 16 * 8);
+        let data_codewords = self.correction.get_nb_data_codewords();
+        self.pad_full_encoding(&mut data_string, data_codewords * 8);
 
         // NOTE: data_strint correct content until here 
         println!("SIZE {} {:?}", data_string.len(), data_string);
@@ -133,7 +134,7 @@ impl QRCode {
         let decimal = to_decimal(&data_string);
         let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, decimal);
         println!("Poly {:?}", poly);
-        let mut other = get_generator_polynomial(0);
+        let mut other = get_generator_polynomial(&self.correction);
 
         divide_message_polynomial(&mut poly, &mut other);
 
