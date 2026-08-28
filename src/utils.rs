@@ -51,9 +51,12 @@ pub mod structure {
                 return true;
             } 
 
+            let is_second_col =  (current.col % 2 == 1) != (current.col < 7);
+
             // println!("Current {:?}", current);
             // If hitting top/bottom
-            if (*is_upward && current.row == 0 && current.col % 2 == 1) || (!*is_upward && current.row == (self.data.len() - 1) && current.col % 2 == 1) {
+            if (*is_upward && current.row == 0 && is_second_col) ||
+                (!*is_upward && current.row == self.data.len() - 1 && is_second_col) {
                 // println!("Enter");
                 *is_upward = !*is_upward;
 
@@ -67,14 +70,14 @@ pub mod structure {
             } else {
                 if *is_upward {
                     // Odd column because idx = size - 1
-                    if current.col % 2 == 0 {
+                    if !is_second_col {
                         current.col -= 1;
                     } else {
                         current.col += 1;
                         current.row -= 1;
                     }
                 } else {
-                    if current.col % 2 == 0 && current.col > 6 {
+                    if !is_second_col {
                         current.col -= 1;
                     } else {
                         current.col += 1;
