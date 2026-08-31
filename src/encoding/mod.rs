@@ -1,57 +1,76 @@
-use std::usize;
-
-use crate::encoding::alphanumeric::Alphanumeric;
-use crate::qrcode::version::Version;
+use crate::error::Error;
+use crate::version::Version;
 use crate::utils::bin::to_binary;
 
-pub mod alphanumeric;
+mod alphanumeric;
 
-pub trait Encode {
-    fn get_binary(&self) -> Vec<bool>;
-    fn encode_text(&self, string: String) -> Option<Vec<bool>>;
+// TODO: remove once QRCode struct has been refactored
+#[derive(Clone)]
+pub enum EncodingMode {
+    Alphanumeric,
 }
 
-pub enum Encoding {
-    ALPHANUMERIC,
+pub struct Segment {
+    mode: EncodingMode,
+    character_count: usize,
+    data: Vec<bool>
 }
 
-impl Encoding {
+// NOTE: required for other encoding modes (byte and kanji)
+struct EncodedData {
+    count: usize,
+    bits: Vec<bool>
+}
 
+impl EncodingMode {
     fn to_binary(&self) -> Vec<bool> {
         return match self {
-            Self::ALPHANUMERIC => Alphanumeric.get_binary()
+            Self::Alphanumeric => Vec::<bool>::from([false, false, true, false])
         }
     }
 
-    fn get_char_count_binary(&self, string_len: usize, version: &Version) -> Vec<bool> {
-        to_binary(string_len, version.get_char_count(self))
-    }
+    fn get_char_count_bits(&self, version: &Version) -> usize {
+        match (self, version.get()) {
+            // (EncodingMode::Numeric,      1..=9)  => 10,
+            // (EncodingMode::Numeric,     10..=26) => 12,
+            // (EncodingMode::Numeric,     27..=40) => 14,
 
-    fn encode_text(&self, string: String) -> Option<Vec<bool>> {
-        match self {
-            Self::ALPHANUMERIC => Alphanumeric.encode_text(string)
+            (EncodingMode::Alphanumeric, 1..=9)  => 9,
+            (EncodingMode::Alphanumeric,10..=26) => 11,
+            (EncodingMode::Alphanumeric,27..=40) => 13,
+
+            // (EncodingMode::Byte,         1..=9)  => 8,
+            // (EncodingMode::Byte,        10..=40) => 16,
+            //
+            // (EncodingMode::Kanji,        1..=9)  => 8,
+            // (EncodingMode::Kanji,       10..=26) => 10,
+            // (EncodingMode::Kanji,       27..=40) => 12,
+
+            _ => unreachable!(),
         }
     }
+}
 
-    pub fn encode(&self, string: String, version: &Version) -> Vec<bool> {
-        [self.to_binary(), 
-            self.get_char_count_binary(string.len(), version),
-            // TODO: remove unchecked unwrap
-            self.encode_text(string).unwrap()
+pub fn encode(text: &str, mode: EncodingMode) -> Result<Segment, Error> {
+    let enconded_data = match mode {
+        EncodingMode::Alphanumeric => alphanumeric::encode(text)?
+    };
+
+    Ok(Segment { 
+        mode, 
+        character_count: enconded_data.count,
+        data: enconded_data.bits
+    })
+}
+
+impl Segment {
+    pub fn to_bits(&self, version: &Version) -> Vec<bool> {
+        let count_size = self.mode.get_char_count_bits(version);
+
+        [
+            self.mode.to_binary(),
+            to_binary(self.character_count, count_size),
+            self.data.clone()
         ].concat()
     }
 }
-
-// TODO: add back
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn test_get_all_padding() {
-//         let expected = vec![false,false,false,false,false,false, 
-//             true,true,true,false,true,true,false,false, 
-//             false,false,false,true,false,false,false,true, 
-//             true,true,true,false,true,true,false,false];
-//         let result = Encoding::get_all_padding(104, 74);
-//         assert_eq!(result, expected);
-//     }
-// }

@@ -1,7 +1,7 @@
 use std::vec;
 
 use crate::utils::structure::{Matrix, Pos};
-use crate::qrcode::version::Version;
+use crate::version::Version;
 
 /// Struct used to apply the patterns to matrices.
 /// There are two cases in which they need to be applied.

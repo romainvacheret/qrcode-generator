@@ -1,72 +1,65 @@
-use crate::encoding::{to_binary, Encode};
+use crate::{encoding::{EncodedData, to_binary}, error::Error};
 
-pub struct Alphanumeric;
+pub(super) fn encode(string: &str) -> Result<EncodedData, Error> {
+    const ALPHA_PAIR_SIZE: usize = 11;
+    const ALPHA_SINGLE_SIZE: usize = 6;
+    let current_size = string.len();
 
-impl Encode for Alphanumeric {
-    fn get_binary(&self) -> Vec<bool> {
-        Vec::<bool>::from([false, false, true, false])
-    }
+    encode_alpha_values(string).map(|vec| {
+        let mut result = Vec::<bool>::new(); 
+        for (idx, &val) in vec.iter().enumerate() {
+            // If is last element and odd number of chars
+            let size = if (idx == vec.len() - 1) && (current_size % 2 == 1) {
+                ALPHA_SINGLE_SIZE
+            } else {
+                ALPHA_PAIR_SIZE
+            };
 
-    fn encode_text(&self, string: String) -> Option<Vec<bool>> {
-        const ALPHA_PAIR_SIZE: usize = 11;
-        const ALPHA_SINGLE_SIZE: usize = 6;
-        let current_size = string.len();
+            result = [result, to_binary(val, size)].concat();
+        }
 
-        self.encode_alpha_values(string).map(|vec| {
-            let mut result = Vec::<bool>::new(); 
-            for (idx, &val) in vec.iter().enumerate() {
-                // If is last element and odd number of chars
-                let size = if (idx == vec.len() - 1) && (current_size % 2 == 1) {
-                    ALPHA_SINGLE_SIZE
-                } else {
-                    ALPHA_PAIR_SIZE
-                };
-
-                result = [result, to_binary(val, size)].concat();
-            }
-            result
-        })
-    }
+        EncodedData { count: string.len(), bits: result }
+    })
 }
 
-impl Alphanumeric {
-    fn get_alpha_value(&self, character: char) -> Option<usize> {
-        let characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
-        return characters.chars().position(|r| r == character);
+fn get_alpha_value(character: char) -> Result<usize, Error> {
+    const CHARACTERS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+
+    CHARACTERS.chars()
+        .position(|r| r == character)
+        .ok_or(Error::InvalidCharacter)
+}
+
+fn encode_alpha_pair(char1: char, char2: char) -> Result<usize, Error> {
+    let first_encoding = get_alpha_value(char1)?;
+
+    Ok(if char2 == '\0' {
+        first_encoding
+    } else {
+        first_encoding * 45 + get_alpha_value(char2)?
+    })
+}
+
+fn encode_alpha_values(string: &str) -> Result<Vec<usize>, Error> {
+    let mut result_vec = Vec::<usize>::new();
+
+    for i in (0..string.len()).step_by(2) {
+        let char1 = string.chars().nth(i).ok_or(Error::IndexOutOfBounds)?;
+        let char2 = if i < string.len() -1 { 
+            string.chars().nth(i + 1).ok_or(Error::IndexOutOfBounds)? 
+        } else { '\0' };
+
+        result_vec.push(encode_alpha_pair(char1, char2)?);
     }
 
-    fn encode_alpha_pair(&self, char1: char, char2: char) -> Option<usize> {
-        let opt_first_encoding = self.get_alpha_value(char1);
-
-        // TODO: handle btter
-        if opt_first_encoding.is_none() {
-            panic!("ERROR: Invalid char");
-        }
-
-        let first_encoding = opt_first_encoding.unwrap();
-
-        return Some(if char2 != '\0' { 
-            first_encoding * 45 + self.get_alpha_value(char2)?
-        } else { first_encoding });
-    }
-
-    fn encode_alpha_values(&self, string: String) -> Option<Vec<usize>> {
-        let mut result_vec = Vec::<usize>::new();
-
-        for i in (0..string.len()).step_by(2) {
-            let char1 = string.chars().nth(i)?;
-            let char2 = if i < string.len() -1 { string.chars().nth(i + 1)? } else { '\0' };
-            result_vec.push(self.encode_alpha_pair(char1, char2)?);
-        }
-
-        return Some(result_vec);
-    }
+    Ok(result_vec)
 }
 
 
+// TODO: improve tests
 #[cfg(test)]
 mod tests {
-    use crate::encoding::{Alphanumeric, Encode};
+    use crate::encoding::alphanumeric;
 
     #[test]
     fn test_encode_text() {
@@ -74,9 +67,16 @@ mod tests {
             false, false, true, true, true, false, false, true, true, 
             true, false, true, true, true, false, false, true, true, 
             true, false, false, true, false, false, false, false, true, false]);
-        let result = Alphanumeric.encode_text(String::from("AC-42")).unwrap();
+        let result = alphanumeric::encode("AC-42").expect("Expected to succeed");
 
-        assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
+        // TODO: update the tests with EncodedData
+        assert_eq!(
+            result.bits, 
+            expected_value, 
+            "Results do no match. Got: {:?} and expected {:?}", 
+            result.bits, 
+            expected_value
+        );
     }
 
     #[test]
@@ -88,8 +88,15 @@ mod tests {
             true, false, true, true, false, true, true, true, false, false, false,  
             true, false, false, true, true, false, true, false, true, false, false,  
             false, false, true, true, false, true];
-        let result = Alphanumeric.encode_text(String::from("HELLO WORLD")).unwrap();
+        let result = alphanumeric::encode("HELLO WORLD").expect("Expected to succeed");
 
-        assert_eq!(result, expected_value, "Results do no match. Got: {:?} and expected {:?}", result, expected_value);
+        // TODO: update the tests with EncodedData
+        assert_eq!(
+            result.bits, 
+            expected_value, 
+            "Results do no match. Got: {:?} and expected {:?}", 
+            result.bits, 
+            expected_value
+        );
     }
 }

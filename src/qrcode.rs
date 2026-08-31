@@ -1,6 +1,6 @@
-use crate::{masking::Mask, patterns::PatternHelper, qrcode::version::Version, utils::{pad, bin::to_bits}};
+use crate::{encoding, masking::Mask, patterns::PatternHelper, utils::{bin::to_bits, pad}, version::Version};
 use crate::correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial};
-use crate::encoding::{Encoding};
+use crate::encoding::{EncodingMode};
 use crate::utils::{dev::print_as_binary, structure::{Matrix, Pos}, bin::to_decimal};
 
 pub struct QRCode {
@@ -8,13 +8,14 @@ pub struct QRCode {
     pattern: Matrix,
     message: String,
     version: Version,
-    encoding: Encoding,
+    encoding: EncodingMode,
     correction: Correction
 }
 
 impl QRCode {
-    pub fn new(message: String, encoding: Encoding, correction: Correction) -> Self {
-        let version = version::Version::new(1).unwrap();
+    pub fn new(message: String, encoding: EncodingMode, correction: Correction) -> Self {
+        // TODO: should be passed as argument
+        let version = Version::new(1).unwrap();
         let mut qrcode = QRCode {
             data: Matrix::new(version.get_size()),
             pattern: Matrix::new(version.get_size()),
@@ -123,7 +124,10 @@ impl QRCode {
 
 
     pub fn assemble(&mut self) {
-        let mut data_string = self.encoding.encode(self.message.to_string(), &self.version);
+        // TODO: remove clone() & unwrap() when refactoring
+        let mut data_string = encoding::encode(&self.message, self.encoding.clone())
+            .unwrap()
+            .to_bits(&self.version);
         let data_codewords = self.correction.get_nb_data_codewords();
         self.pad_full_encoding(&mut data_string, data_codewords * 8);
 
@@ -188,42 +192,3 @@ impl QRCode {
     }
 }
 
-pub mod version {
-    use crate::encoding::Encoding;
-
-    pub struct Version(usize);
-
-    impl Version {
-        pub fn new(value: usize) -> Option<Self> {
-            if (1..=40).contains(&value) {
-                Some(Version(value))
-            } else {
-                None
-            }
-        }
-
-        pub fn get(&self) -> usize {
-            return self.0
-        }
-
-        // https://www.thonky.com/qr-code-tutorial/data-encoding
-        pub fn get_char_count(&self, encoding: &Encoding) -> usize {
-            match encoding {
-                Encoding::ALPHANUMERIC => match self.0 {
-                    1..=9 => 9,
-                    10..=26 => 11,
-                    27..=40 => 13,
-                    _ => unreachable!()
-                }
-            }
-        }
-
-        pub fn get_size(&self) -> usize {
-            match self.0 {
-                1 => 21,
-                _ => panic!("Not implemented yet")
-            }
-        }
-
-    }
-}

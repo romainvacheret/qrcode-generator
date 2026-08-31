@@ -5,3 +5,5 @@ pub mod patterns;
 pub mod encoding;
 pub mod correction;
 pub mod qrcode;
+mod version;
+mod error;

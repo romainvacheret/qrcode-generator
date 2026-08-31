@@ -1,4 +1,4 @@
-use qrcodegen::encoding::Encoding;
+use qrcodegen::encoding::EncodingMode;
 use qrcodegen::correction::{divide_message_polynomial, get_generator_polynomial, NotationMode, Polynomial, Correction};
 use qrcodegen::qrcode::QRCode;
 
@@ -76,7 +76,7 @@ fn main() {
 
     let message = "HELLO WORLD";
     // No other encoding available at the moment
-    let encoding = Encoding::ALPHANUMERIC;
+    let encoding = EncodingMode::Alphanumeric;
     // No other correction at the moment
     let correction = Correction::M;
     let mut qrcodee = QRCode::new(message.to_string(), encoding, correction);
