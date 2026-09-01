@@ -160,3 +160,11 @@ pub mod bin {
 pub fn pad(vect: &mut Vec<bool>, pad_size: usize) {
     vect.extend((0..pad_size).map(|_| false));
 }
+
+pub fn pad_until(vect: &mut Vec<bool>, expected_size: usize) {
+    // TODO: Current size should never be greater than expected_size
+    // but should still handle possible error
+    for _ in 0..(expected_size - vect.len()) {
+        vect.push(false);
+    }
+}

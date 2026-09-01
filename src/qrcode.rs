@@ -1,5 +1,5 @@
-use crate::{encoding, masking::Mask, patterns::PatternHelper, utils::{bin::to_bits, pad}, version::Version};
-use crate::correction::{self, divide_message_polynomial, generate_format_string, get_generator_polynomial, Correction, NotationMode, Polynomial};
+use crate::{correction::{generate_ecc, info}, encoding, masking::Mask, patterns::PatternHelper, utils::{bin::to_bits, pad}, version::Version};
+use crate::correction::{self,generate_format_string,  CorrectionLevel};
 use crate::encoding::{EncodingMode};
 use crate::utils::{dev::print_as_binary, structure::{Matrix, Pos}, bin::to_decimal};
 
@@ -9,11 +9,11 @@ pub struct QRCode {
     message: String,
     version: Version,
     encoding: EncodingMode,
-    correction: Correction
+    correction: CorrectionLevel
 }
 
 impl QRCode {
-    pub fn new(message: String, encoding: EncodingMode, correction: Correction) -> Self {
+    pub fn new(message: String, encoding: EncodingMode, correction: CorrectionLevel) -> Self {
         // TODO: should be passed as argument
         let version = Version::new(1).unwrap();
         let mut qrcode = QRCode {
@@ -128,28 +128,30 @@ impl QRCode {
         let mut data_string = encoding::encode(&self.message, self.encoding.clone())
             .unwrap()
             .to_bits(&self.version);
-        let data_codewords = self.correction.get_nb_data_codewords();
-        self.pad_full_encoding(&mut data_string, data_codewords * 8);
+
+        let correction_info = info(&self.version, &self.correction);
+        self.pad_full_encoding(&mut data_string, correction_info.data_codewords * 8);
 
         // NOTE: data_strint correct content until here 
         println!("SIZE {} {:?}", data_string.len(), data_string);
         print_as_binary(&data_string, 8);
 
         let decimal = to_decimal(&data_string);
-        let mut poly = Polynomial::new(correction::NotationMode::DECIMAL, decimal);
-        println!("Poly {:?}", poly);
-        let mut other = get_generator_polynomial(&self.correction);
-
-        divide_message_polynomial(&mut poly, &mut other);
-
-        if poly.mode != NotationMode::DECIMAL {
-            poly.convert();
-        }
-        println!("Poly {:?}", poly);
+        let correction_codewords = generate_ecc(decimal, &correction_info);
+        // let mut poly = Polynomial::new(NotationMode::DECIMAL, decimal);
+        // println!("Poly {:?}", poly);
+        // let mut other = get_generator_polynomial(&self.correction);
+        //
+        // divide_message_polynomial(&mut poly, &mut other);
+        //
+        // if poly.mode != NotationMode::DECIMAL {
+        //     poly.convert();
+        // }
+        // println!("Poly {:?}", poly);
 
         // let pad_count = max_size.abs_diff(res.len()) / 8;
 
-        let correction_bits: Vec<bool> = poly.values.iter()
+        let correction_bits: Vec<bool> = correction_codewords.iter()
             .flat_map(|val| to_bits(*val))
             .collect();
 
