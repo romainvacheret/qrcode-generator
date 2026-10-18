@@ -1,5 +1,5 @@
-use crate::{correction::{generate_ecc, info}, encoding, masking::Mask, patterns::PatternHelper, utils::{bin::to_bits, pad}, version::Version};
-use crate::correction::{self,generate_format_string,  CorrectionLevel};
+use crate::{correction::{generate_ecc, info}, encoding, format::generate_format_string, masking::Mask, patterns::PatternHelper, utils::{bin::to_bits, pad}, version::Version};
+use crate::correction::{CorrectionLevel};
 use crate::encoding::{EncodingMode};
 use crate::utils::{dev::print_as_binary, structure::{Matrix, Pos}, bin::to_decimal};
 
@@ -123,6 +123,7 @@ impl QRCode {
     }
 
 
+    // TODO: replace u16 by u8
     pub fn assemble(&mut self) {
         // TODO: remove clone() & unwrap() when refactoring
         let mut data_string = encoding::encode(&self.message, self.encoding.clone())
@@ -137,7 +138,12 @@ impl QRCode {
         print_as_binary(&data_string, 8);
 
         let decimal = to_decimal(&data_string);
-        let correction_codewords = generate_ecc(decimal, &correction_info);
+        let correction_codewords: Vec<u16> = generate_ecc(decimal
+            .iter()
+            .map(|&v| v as u8)
+            .collect(), 
+            &correction_info
+        ).iter().map(|&v| v as u16).collect();
         // let mut poly = Polynomial::new(NotationMode::DECIMAL, decimal);
         // println!("Poly {:?}", poly);
         // let mut other = get_generator_polynomial(&self.correction);

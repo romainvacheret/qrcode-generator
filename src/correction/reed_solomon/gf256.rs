@@ -1,21 +1,6 @@
 use std::{fs::File, io::{BufRead, BufReader}};
 use std::sync::OnceLock;
 
-// TODO: should no longer be public later one
-pub fn get_log_antilog() -> Vec<Vec<u16>> {
-    let file = File::open("log-antilog.csv").expect("Cannot open file");
-
-    BufReader::new(file)
-        .lines()
-        .skip(1) // skip header
-        .filter_map(Result::ok)
-        .map(|line| line.split(',')
-                        .map(|s| s.parse::<u16>().unwrap())
-                        .collect::<Vec<u16>>())
-        .collect::<Vec<Vec<u16>>>()
-}
-
-
 struct Tables {
     log: [u8; 256],
     exp: [u8; 256],
@@ -55,11 +40,11 @@ fn to_exp(val: u8) -> u8 {
     tables().log[val as usize]
 }
 
-pub fn sub(a: u8, b: u8) -> u8 {
+pub(super) fn sub(a: u8, b: u8) -> u8 {
     a ^ b
 }
 
-pub fn div(a: u8, b: u8) -> u8 {
+pub(super) fn div(a: u8, b: u8) -> u8 {
     assert!(b != 0, "division by zero in GF(256)");
 
     if a == 0 {
@@ -72,7 +57,7 @@ pub fn div(a: u8, b: u8) -> u8 {
     to_exp(((a_log + 255 - b_log) % 255) as u8)
 }
 
-pub fn mul(a: u8, b: u8) -> u8 {
+pub(super) fn mul(a: u8, b: u8) -> u8 {
     if a == 0 || b == 0 {
         return 0;
     }

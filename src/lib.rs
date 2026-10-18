@@ -7,3 +7,4 @@ pub mod correction;
 pub mod qrcode;
 mod version;
 mod error;
+mod format;
